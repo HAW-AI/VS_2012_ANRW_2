@@ -97,7 +97,13 @@ nachbarn(Index, ProzesseMitIndex) when is_integer(Index) and is_list(ProzesseMit
 
 berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
     receive
-    reset ->
+    {briefmi, {Clientname, CMi, CZeit}} ->
+	    log(lists:concat([Clientname, " calculated new Mi ", CMi, " at ", CZeit])),
+	    berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	{briefterm, {Clientname, CMi, CZeit}} ->
+	    log(lists:concat([Clientname, " terminated with Mi ", CMi, " at ", CZeit])),
+	    berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	reset ->
         log("reset"),
         reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	beenden ->
