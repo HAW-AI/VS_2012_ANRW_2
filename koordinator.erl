@@ -1,5 +1,5 @@
 -module(koordinator).
--export([start/0, start/1, initial/2]).
+-export([start/0, start/1]).
 -author("Aleksandr Nosov, Raimund Wege").
 
 %%  ____ _____  ___  _____ _____
@@ -60,9 +60,49 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
 %% |_____|_____|_| |_|_____|_| |_|
 
 bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    if  length(Prozesse) < 3 ->
+        log("nicht genug Prozesse"),
+        initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+    true ->
+        log("Nachbarn bekannt geben"),
+        ProzesseGemischt = lists:map(fun({_, X}) -> X end, lists:keysort(1, lists:map(fun(X) -> {random:uniform(), X} end, Prozesse))),
+        ProzesseMitIndex = lists:zip(lists:seq(1, length(ProzesseGemischt)), ProzesseGemischt),
+        ProzesseMitNachbarn = lists:map(fun({Index, Prozess}) -> {Prozess, nachbarn(Index, ProzesseMitIndex)} end, ProzesseMitIndex),
+        lists:map(fun({Prozess, {Left, Right}}) -> send_message(Nameservicenode, Prozess, {setneighbors, Left, Right}) end, ProzesseMitNachbarn),
+        receive
+        berechnen ->
+            log("berechnen"),
+            berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        reset ->
+            log("reset"),
+            reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        beenden ->
+            log("beenden"),
+            kill(Nameservicenode, Prozesse)
+        end
+    end.
+
+nachbarn(Index, ProzesseMitIndex) when is_integer(Index) and is_list(ProzesseMitIndex) ->
+    Length = length(ProzesseMitIndex),
+    if  Index == 1 -> {lists:nth(Length, ProzesseMitIndex), lists:nth(Index + 1, ProzesseMitIndex)};
+        Index == Length -> {lists:nth(Index - 1, ProzesseMitIndex), lists:nth(1, ProzesseMitIndex)};
+    true ->
+        {lists:nth(Index - 1, ProzesseMitIndex), lists:nth(Index + 1, ProzesseMitIndex)}
+    end.
+
+%%  _____ _____ _____ _____________   _ __  _ _____ __  _
+%% |  _  | ____|  _  \ ____|  ___| |_| |  \| | ____|  \| |
+%% |  _ <| __|_|  _ <| __|_| |___|  _  |     | __|_|     |
+%% |_____|_____|_| |_|_____|_____|_| |_|_|\__|_____|_|\__|
+
+berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
     receive
-    juhu ->
-        bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
+    reset ->
+        log("reset"),
+        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	beenden ->
+        log("beenden"),
+        kill(Nameservicenode, Prozesse)
     end.
 
 %%  _____ _____ ____ _____ _____
