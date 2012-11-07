@@ -10,6 +10,7 @@
 start() ->
     spawn(koordinator, start, [tools:getKoordinatorConfigData()]).
 start({Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    log("start"),
     register(Koordinatorname, self()),
     case get_nameservice(Nameservicenode) of
 	{ok, Nameservice} ->
@@ -19,7 +20,6 @@ start({Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname
 	    log(lists:concat(["Fehler: ", Reason])),
 	    exit(killed)
     end,
-    log("initial"),
     initial([], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}).
 
 %%  _ __  _________ _  ___  _
@@ -28,6 +28,7 @@ start({Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname
 %% |_|_|\__|_| |_| |_|_| |_|____|
 
 initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    log("initial"),
     receive
 	{getsteeringval, Starter} ->
         log("Steeringval Anfrage"),
@@ -44,14 +45,11 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
 		    initial([Clientname|Prozesse], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
 	    end;
 	bereit ->
-        log("bereit"),
         bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	reset ->
-        log("reset"),
         reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	beenden ->
-        log("beenden"),
-        kill(Nameservicenode, Prozesse)
+        beenden(Prozesse, {Nameservicenode})
     end.
 
 %%  _____ _____ _____ _____________
@@ -60,8 +58,9 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
 %% |_____|_____|_| |_|_____|_| |_|
 
 bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    log("bereit"),
     if  length(Prozesse) < 3 ->
-        log("nicht genug Prozesse"),
+        log("es sind noch nicht genug Prozesse"),
         initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
     true ->
         log("Nachbarn bekannt geben"),
@@ -70,15 +69,12 @@ bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koor
         ProzesseMitNachbarn = lists:map(fun({Index, Prozess}) -> {Prozess, nachbarn(Index, ProzesseMitIndex)} end, ProzesseMitIndex),
         lists:map(fun({Prozess, {Left, Right}}) -> send_message(Nameservicenode, Prozess, {setneighbors, Left, Right}) end, ProzesseMitNachbarn),
         receive
-        berechnen ->
-            log("berechnen"),
-            berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        {berechnen, Ggt} ->
+            berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
         reset ->
-            log("reset"),
             reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
         beenden ->
-            log("beenden"),
-            kill(Nameservicenode, Prozesse)
+            beenden(Prozesse, {Nameservicenode})
         end
     end.
 
@@ -95,21 +91,27 @@ nachbarn(Index, ProzesseMitIndex) when is_integer(Index) and is_list(ProzesseMit
 %% |  _ <| __|_|  _ <| __|_| |___|  _  |     | __|_|     |
 %% |_____|_____|_| |_|_____|_____|_| |_|_|\__|_____|_|\__|
 
-berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    log("berechnen"),
+
+    N = round(length(Prozesse) * 15 / 100),
+    lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["MI: ", G, " setpm ", P])), send_message(Nameservicenode, P, {setpm, G}) end, Prozesse),
+    lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["Y:  ", G, " sendy ", P])), send_message(Nameservicenode, P, {sendy, G}) end, lists:sublist(Prozesse, N)),
+    
     receive
     {briefmi, {Clientname, CMi, CZeit}} ->
 	    log(lists:concat([Clientname, " calculated new Mi ", CMi, " at ", CZeit])),
-	    berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	    berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	{briefterm, {Clientname, CMi, CZeit}} ->
 	    log(lists:concat([Clientname, " terminated with Mi ", CMi, " at ", CZeit])),
-	    berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	    berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	reset ->
-        log("reset"),
         reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	beenden ->
-        log("beenden"),
-        kill(Nameservicenode, Prozesse)
+        beenden(Prozesse, {Nameservicenode})
     end.
+
+ggt(GGT) -> GGT * lists:foldl(fun(X, Y) -> X * math:pow(Y, random:uniform(3) - 1) end, 1, [3, 5, 11, 13, 23, 37]).
 
 %%  _____ _____ ____ _____ _____
 %% |  _  \ ____/ ___| ____|_   _|
@@ -117,8 +119,18 @@ berechnen(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, K
 %% |_| |_|_____|____/_____| |_|
 
 reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    log("reset"),
     kill(Nameservicenode, Prozesse),
     initial([], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}).
+
+%%  _____ _____ _____ __  _ _____ _____ __  _
+%% |  _  | ____| ____|  \| |  _  \ ____|  \| |
+%% |  _ <| __|_| __|_|     | |_| | __|_|     |
+%% |_____|_____|_____|_|\__|_____/_____|_|\__|
+
+beenden(Prozesse, {Nameservicenode}) ->
+    log("beenden"),
+    kill(Nameservicenode, Prozesse).
 
 %%  _   _ _ _     _
 %% | |_| | | |   | |
@@ -126,7 +138,7 @@ reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koord
 %% |_| |_|_|_____|_____|
 
 kill(Nameservicenode, Prozesse) when is_list(Prozesse) ->
-    log("Killing all processes"),
+    log("killing all processes"),
     lists:map(fun(X)-> send_message(Nameservicenode ,X , kill) end, Prozesse).
 
 %%  _     _____ _____
