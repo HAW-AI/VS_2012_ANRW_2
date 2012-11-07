@@ -43,15 +43,15 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
             log(lists:concat([Clientname], "wurde hinzugefügt")),
 		    initial([Clientname|Prozesse], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
 	    end;
-	bereit -> 
+	bereit ->
         log("bereit"),
         bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-	reset -> 
+	reset ->
         log("reset"),
-        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});        
-	beenden -> 
+        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	beenden ->
         log("beenden"),
-	    kill(Nameservicenode, Prozesse)
+        kill(Nameservicenode, Prozesse)
     end.
 
 %%  _____ _____ _____ _____________
