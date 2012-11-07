@@ -1,5 +1,5 @@
 -module(tools).
--export([minKey/1,maxKey/1,localtime/0,nextKey/2,getClientConfigData/0,getServerConfigData/0, getKoordinatorConfigData/0,getGgtConfigData/0]).
+-compile(export_all).
 -author("Aleksandr Nosov").
 
 getKoordinatorConfigData() ->
@@ -38,6 +38,31 @@ getServerConfigData() ->
 	DQ_limit = proplists:get_value(dlqlimit, Configurations),
 	%%Difftime = proplists:get_value(difftime, Configurations), keine Anhnung wofur man das braucht.
 	{Servername,DQ_limit,LiTime,ReTime}.
+
+get_nameservice(Nameservicenode,Logfunc) ->
+	case net_adm:ping(Nameservicenode) of
+	pang -> 
+	    Logfunc("Nameservicenode ist nicht verfuegbar!"),
+	    {error,no_nameservicenode};
+	pong -> 
+	    global:sync(),
+	    Nameservice = global:whereis_name(nameservice),
+	    {ok,Nameservice}
+    end.
+
+get_service({Servicename,Nameservice,Logfunc})->
+	Nameservice ! {self(),{lookup,Servicename}},	
+	receive
+		not_found ->
+			Logfunc("Service "++Servicename++" nicht gefunden"),
+			{error,no_koordinator};
+		kill ->
+			{error,kill_command};
+		Service={NameOfService,Node} when is_atom(NameOfService) and is_atom(Node) -> 
+			Logfunc("Service "++Servicename++" gefunden"),
+			{ok,Service}	    
+	end.
+		
 
 minKey([]) -> 0;
 minKey([X,Y|Tail])-> minKey(X,Y,Tail);
