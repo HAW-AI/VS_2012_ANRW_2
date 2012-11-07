@@ -1,6 +1,25 @@
 -module(tools).
--export([minKey/1,maxKey/1,localtime/0,nextKey/2,getClientConfigData/0,getServerConfigData/0]).
+-export([minKey/1,maxKey/1,localtime/0,nextKey/2,getClientConfigData/0,getServerConfigData/0, getKoordinatorConfigData/0,getGgtConfigData/0]).
 -author("Aleksandr Nosov").
+
+getKoordinatorConfigData() ->
+	{ok, Configurations} = file:consult("koordinator.cfg"),
+	Arbeitszeit = proplists:get_value(arbeitszeit, Configurations),
+	Termzeit = proplists:get_value(termzeit, Configurations),
+	Ggtprozessnummer = proplists:get_value(ggtprozessnummer, Configurations),
+	Nameservicenode = proplists:get_value(nameservicenode, Configurations),
+    Koordinatorname = proplists:get_value(koordinatorname, Configurations),
+	{Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}.
+
+
+getGgtConfigData() ->
+	{ok, Configurations} = file:consult("ggt.cfg"),
+	Praktikumsgruppe = proplists:get_value(praktikumsgruppe, Configurations),
+	Teamnummer = proplists:get_value(teamnummer, Configurations),
+	Nameservicenode = proplists:get_value(nameservicenode, Configurations),
+	Koordinatorname = proplists:get_value(koordinatorname, Configurations),
+	{Praktikumsgruppe, Teamnummer, Nameservicenode, Koordinatorname}.
+
 
 getClientConfigData() ->
 	{ok, Configurations} = file:consult("client.cfg"),
