@@ -4,4 +4,4 @@ priv
 *.o
 *.beam
 *.plt
-.log
+*.log

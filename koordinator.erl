@@ -37,10 +37,10 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
         log(lists:concat(["Hello von: ", Clientname])),
 	    case lists:member(Clientname, Prozesse) of
 		true ->
-            log(lists:concat([Clientname], "existiert bereits")),
+            log(lists:concat([Clientname, "existiert bereits"])),
 		    initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 		false ->
-            log(lists:concat([Clientname], "wurde hinzugefügt")),
+            log(lists:concat([Clientname, "wurde hinzugefügt"])),
 		    initial([Clientname|Prozesse], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
 	    end;
 	bereit ->
@@ -52,7 +52,7 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
             ProzesseGemischt = lists:map(fun({_, X}) -> X end, lists:keysort(1, lists:map(fun(X) -> {random:uniform(), X} end, Prozesse))),
             ProzesseMitIndex = lists:zip(lists:seq(1, length(ProzesseGemischt)), ProzesseGemischt),
             ProzesseMitNachbarn = lists:map(fun({Index, Prozess}) -> {Prozess, nachbarn(Index, ProzesseMitIndex)} end, ProzesseMitIndex),
-            lists:map(fun({Prozess, {Left, Right}}) -> send_message(Nameservicenode, Prozess, {setneighbors, Left, Right}) end, ProzesseMitNachbarn),
+            lists:map(fun({Prozess, {{_,Left}, {_,Right}}}) -> send_message(Nameservicenode, Prozess, {setneighbors, Left, Right}) end, ProzesseMitNachbarn),
             bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
         end;
 	beenden ->
@@ -73,25 +73,26 @@ nachbarn(Index, ProzesseMitIndex) when is_integer(Index) and is_list(ProzesseMit
 %% |_____|_____|_| |_|_____|_| |_|
 
 bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
-    log("bereit"),
+ %%% HIER IST ALLES FALSH
     receive
-    {berechnen, Ggt} ->
-        berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-    reset ->
-        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-    beenden ->
-        beenden(Prozesse, {Nameservicenode})
+        {briefmi, {Clientname, CMi, CZeit}} ->
+            log(lists:concat([Clientname, " calculated new Mi ", CMi, " at ", CZeit])),
+            bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        {briefterm, {Clientname, CMi, CZeit}} ->
+            log(lists:concat([Clientname, " terminated with Mi ", CMi, " at ", CZeit])),
+            bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        {berechnen, Ggt} ->
+            log(lists:concat(["Berechne neue GGT:", Ggt, "\n"])),
+            lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["MI: ", G, " setpm ", P])), send_message(Nameservicenode, P, {setpm, G}) end, Prozesse),
+            lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["Y:  ", G, " sendy ", P])), send_message(Nameservicenode, P, {sendy, G}) end, lists:sublist(Prozesse, n(Prozesse))),
+            bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        reset ->
+            log("Reset"),
+            reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+        beenden ->
+            log("beenden"),
+            beenden(Prozesse, {Nameservicenode})
     end.
-    
-%%  _____ _____ _____ _____________   _ __  _ _____ __  _
-%% |  _  | ____|  _  \ ____|  ___| |_| |  \| | ____|  \| |
-%% |  _ <| __|_|  _ <| __|_| |___|  _  |     | __|_|     |
-%% |_____|_____|_| |_|_____|_____|_| |_|_|\__|_____|_|\__|
-
-berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
-    lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["MI: ", G, " setpm ", P])), send_message(Nameservicenode, P, {setpm, G}) end, Prozesse),
-    lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["Y:  ", G, " sendy ", P])), send_message(Nameservicenode, P, {sendy, G}) end, lists:sublist(Prozesse, n(Prozesse))),
-    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}).
 
 n(Prozesse) when is_list(Prozesse) ->
     case round(length(Prozesse) * 15 / 100) of
@@ -99,23 +100,7 @@ n(Prozesse) when is_list(Prozesse) ->
 	N -> N
     end.
 
-berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
-    receive
-    {briefmi, {Clientname, CMi, CZeit}} ->
-	    log(lists:concat([Clientname, " calculated new Mi ", CMi, " at ", CZeit])),
-	    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-	{briefterm, {Clientname, CMi, CZeit}} ->
-	    log(lists:concat([Clientname, " terminated with Mi ", CMi, " at ", CZeit])),
-	    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-    {berechnen, Ggt} ->
-        berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-	reset ->
-        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
-	beenden ->
-        beenden(Prozesse, {Nameservicenode})
-    end.
-
-ggt(GGT) -> GGT * lists:foldl(fun(X, Y) -> X * math:pow(Y, random:uniform(3) - 1) end, 1, [3, 5, 11, 13, 23, 37]).
+ggt(GGT) -> round(GGT * lists:foldl(fun(X, Y) -> X * math:pow(Y, random:uniform(3) - 1) end, 1, [3, 5, 11, 13, 23, 37])).
 
 %%  _____ _____ ____ _____ _____
 %% |  _  \ ____/ ___| ____|_   _|
@@ -153,7 +138,7 @@ kill(Nameservicenode, Prozesse) when is_list(Prozesse) ->
 log(Message) ->
     Name = lists:concat(["koordinator@", net_adm:localhost()]),
     NewMessage = lists:concat([Name, werkzeug:timeMilliSecond(), " ", Message, "\n"]),
-    werkzeug:logging(lists:concat("NKoordinator.log"), NewMessage).
+    werkzeug:logging("NKoordinator.log", NewMessage).
 
 %%  _____ _____ ___ ___ ___ ___ _   _ __  _ _ _____  ___  _____ _____
 %% |  ___|  _  |   V   |   V   | | | |  \| | |  ___|/ _ \|_   _| ____|
