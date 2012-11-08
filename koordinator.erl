@@ -84,26 +84,33 @@ nachbarn(Index, ProzesseMitIndex) when is_integer(Index) and is_list(ProzesseMit
     true ->
         {lists:nth(Index - 1, ProzesseMitIndex), lists:nth(Index + 1, ProzesseMitIndex)}
     end.
-
+    
 %%  _____ _____ _____ _____________   _ __  _ _____ __  _
 %% |  _  | ____|  _  \ ____|  ___| |_| |  \| | ____|  \| |
 %% |  _ <| __|_|  _ <| __|_| |___|  _  |     | __|_|     |
 %% |_____|_____|_| |_|_____|_____|_| |_|_|\__|_____|_|\__|
 
 berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
-    log("berechnen"),
-
-    N = round(length(Prozesse) * 15 / 100),
     lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["MI: ", G, " setpm ", P])), send_message(Nameservicenode, P, {setpm, G}) end, Prozesse),
-    lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["Y:  ", G, " sendy ", P])), send_message(Nameservicenode, P, {sendy, G}) end, lists:sublist(Prozesse, N)),
-    
+    lists:map(fun(P) -> G = ggt(Ggt), log(lists:concat(["Y:  ", G, " sendy ", P])), send_message(Nameservicenode, P, {sendy, G}) end, lists:sublist(Prozesse, n(Prozesse))),
+    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}).
+
+n(Prozesse) when is_list(Prozesse) ->
+    case round(length(Prozesse) * 15 / 100) of
+	N when N < 2 -> 2;
+	N -> N
+    end.
+
+berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
     receive
     {briefmi, {Clientname, CMi, CZeit}} ->
 	    log(lists:concat([Clientname, " calculated new Mi ", CMi, " at ", CZeit])),
-	    berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	{briefterm, {Clientname, CMi, CZeit}} ->
 	    log(lists:concat([Clientname, " terminated with Mi ", CMi, " at ", CZeit])),
-	    berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+    {berechnen, Ggt} ->
+        berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	reset ->
         reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	beenden ->
