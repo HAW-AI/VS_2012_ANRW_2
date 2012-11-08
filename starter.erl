@@ -6,11 +6,11 @@ start()-> start(1).
 start(AnzahlStarter) when AnzahlStarter > 0 -> lists:map(fun(X)->spawn(fun()->init(X) end) end,lists:seq(1,AnzahlStarter)).
 
 init(Starternr)->
-    {Koordinatorname,Nameservicenode,Team,Gruppe,Starternr}=tools:getGgtConfigData(),
-	Locfunc=fun(Message) -> log(Message,Starternr) end,
-	case tools:get_nameservice({Nameservicenode,Locfunc}) of
-		{ok,_}->
-			case tools:get_service({Koordinatorname,Nameservicenode,Locfunc}) of
+    {Gruppe,Team,Nameservicenode,Koordinatorname}=tools:getGgtConfigData(),
+    Locfunc=fun(Message) -> log(Message,Starternr) end,
+    case tools:get_nameservice(Nameservicenode,Locfunc) of
+		{ok,Nameservice}->
+			case tools:get_service({Koordinatorname,Nameservice,Locfunc}) of
 				{ok,Koordinator}->
 					log("Koordinator nach steeringval fragen",Starternr),
 					Koordinator ! {getsteeringval,self()},
@@ -36,6 +36,7 @@ terminate(Starternr)->
 	    exit(normal).
 
 log(Message,Starternr)->
-    Name = lists:concat(["ggt",Starternr,"@",inet:hostname()]),
+    {ok,Hostname} = inet:gethostname(),
+    Name = lists:concat(["ggt",Starternr,"@",Hostname]),
     NewMessage = lists:concat([Name,werkzeug:timeMilliSecond()," ",Message,io_lib:nl()]),
     werkzeug:logging(lists:concat([Name,".log"]),NewMessage).

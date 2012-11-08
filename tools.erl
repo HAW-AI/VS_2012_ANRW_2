@@ -42,7 +42,7 @@ getServerConfigData() ->
 get_nameservice(Nameservicenode,Logfunc) ->
 	case net_adm:ping(Nameservicenode) of
 	pang -> 
-	    Logfunc("Nameservicenode ist nicht verfuegbar!"),
+	    Logfunc("Nameservicenode ist nicht verfuegbar!\n"),
 	    {error,no_nameservicenode};
 	pong -> 
 	    global:sync(),
@@ -54,12 +54,12 @@ get_service({Servicename,Nameservice,Logfunc})->
 	Nameservice ! {self(),{lookup,Servicename}},	
 	receive
 		not_found ->
-			Logfunc("Service "++Servicename++" nicht gefunden"),
+			Logfunc(lists:concat(["Service ",Servicename," nicht gefunden\n"])),
 			{error,no_koordinator};
 		kill ->
 			{error,kill_command};
 		Service={NameOfService,Node} when is_atom(NameOfService) and is_atom(Node) -> 
-			Logfunc("Service "++Servicename++" gefunden"),
+			Logfunc(lists:concat(["Service ",Servicename," gefunden\n"])),
 			{ok,Service}	    
 	end.
 		
@@ -99,7 +99,7 @@ localtime()->
 	Secs.
 	
 log(Message,ClientID,Hostname) ->
-	werkzeug:logging("client_"++integer_to_list(ClientID)++Hostname++".log",Message).
+	werkzeug:logging(["client_",ClientID,Hostname,".log"],Message).
 	
 %% Ist fur die Zeit T blockiert.	
 sleep(T) ->
