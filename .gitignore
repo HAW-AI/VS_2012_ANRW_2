@@ -5,3 +5,4 @@ priv
 *.beam
 *.plt
 *.log
+.DS_Store
