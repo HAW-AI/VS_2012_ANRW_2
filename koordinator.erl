@@ -7,8 +7,7 @@
 %% |___ | | | |  _  |  _ <  | |
 %% |____/ |_| |_| |_|_| |_| |_|
 
-start() ->
-    spawn(koordinator, start, [tools:getKoordinatorConfigData()]).
+start() -> spawn(koordinator, start, [tools:getKoordinatorConfigData()]).
 start({Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
     log("start"),
     register(Koordinatorname, self()),
@@ -147,7 +146,7 @@ kill(Nameservicenode, Prozesse) when is_list(Prozesse) ->
 %% |_____|_____|_____|
 
 log(Message) ->
-    Name = lists:concat(["Koordinator@", net_adm:localhost()]),
+    Name = lists:concat(["koordinator@", net_adm:localhost()]),
     NewMessage = lists:concat([Name, werkzeug:timeMilliSecond(), " ", Message, "\n"]),
     werkzeug:logging(lists:concat("NKoordinator.log"), NewMessage).
 
@@ -169,7 +168,7 @@ get_nameservice(Nameservicenode) ->
 
 get_service(Nameservicenode, Name) ->
     case get_nameservice(Nameservicenode) of
-	Error = {error, Reason}->
+	Error = {error, Reason} ->
 	    log(lists:concat(["Cannot get service ", Name, " because of ", Reason])),
 	    Error;
 	{ok, Nameservice} ->
