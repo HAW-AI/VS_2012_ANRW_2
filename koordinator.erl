@@ -37,10 +37,10 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
         log(lists:concat(["Hello von: ", Clientname])),
 	    case lists:member(Clientname, Prozesse) of
 		true ->
-            log(lists:concat([Clientname], " existiert bereits")),
+            log(lists:concat([Clientname], "existiert bereits")),
 		    initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 		false ->
-            log(lists:concat([Clientname], " wurde hinzugefügt")),
+            log(lists:concat([Clientname], "wurde hinzugefügt")),
 		    initial([Clientname|Prozesse], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
 	    end;
 	bereit ->
@@ -77,6 +77,8 @@ bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koor
     receive
     {berechnen, Ggt} ->
         berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+    reset ->
+        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
     beenden ->
         beenden(Prozesse, {Nameservicenode})
     end.
@@ -107,19 +109,40 @@ berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameserv
 	    berechnen_loop(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
     {berechnen, Ggt} ->
         berechnen(Prozesse, Ggt, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
+	reset ->
+        reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname});
 	beenden ->
         beenden(Prozesse, {Nameservicenode})
     end.
 
 ggt(GGT) -> GGT * lists:foldl(fun(X, Y) -> X * math:pow(Y, random:uniform(3) - 1) end, 1, [3, 5, 11, 13, 23, 37]).
 
+%%  _____ _____ ____ _____ _____
+%% |  _  \ ____/ ___| ____|_   _|
+%% |  _ <| __|_|___ | __|_  | |
+%% |_| |_|_____|____/_____| |_|
+
+reset(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}) ->
+    log("reset"),
+    kill(Nameservicenode, Prozesse),
+    initial([], {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname}).
+
 %%  _____ _____ _____ __  _ _____ _____ __  _
 %% |  _  | ____| ____|  \| |  _  \ ____|  \| |
 %% |  _ <| __|_| __|_|     | |_| | __|_|     |
 %% |_____|_____|_____|_|\__|_____/_____|_|\__|
 
-beenden(Prozesse, {Nameservicenode}) when is_list(Prozesse) ->
+beenden(Prozesse, {Nameservicenode}) ->
     log("beenden"),
+    kill(Nameservicenode, Prozesse).
+
+%%  _   _ _ _     _
+%% | |_| | | |   | |
+%% |  _ <| | |___| |___
+%% |_| |_|_|_____|_____|
+
+kill(Nameservicenode, Prozesse) when is_list(Prozesse) ->
+    log("killing all processes"),
     lists:map(fun(X)-> send_message(Nameservicenode ,X , kill) end, Prozesse).
 
 %%  _     _____ _____
