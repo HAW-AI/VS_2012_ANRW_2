@@ -52,7 +52,7 @@ initial(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koo
             ProzesseGemischt = lists:map(fun({_, X}) -> X end, lists:keysort(1, lists:map(fun(X) -> {random:uniform(), X} end, Prozesse))),
             ProzesseMitIndex = lists:zip(lists:seq(1, length(ProzesseGemischt)), ProzesseGemischt),
             ProzesseMitNachbarn = lists:map(fun({Index, Prozess}) -> {Prozess, nachbarn(Index, ProzesseMitIndex)} end, ProzesseMitIndex),
-            lists:map(fun({Prozess, {{_,Left}, {_,Right}}}) -> send_message(Nameservicenode, Prozess, {setneighbors, Left, Right}) end, ProzesseMitNachbarn),
+            lists:map(fun({Prozess, {{_,Left}, {_,Right}}}) -> log(lists:concat([Prozess," hat links ",Left," und rechts ",Right])), send_message(Nameservicenode, Prozess, {setneighbors, Left, Right}) end, ProzesseMitNachbarn),
             bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koordinatorname})
         end;
 	beenden ->
