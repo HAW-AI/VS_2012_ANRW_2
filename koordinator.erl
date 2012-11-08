@@ -94,13 +94,15 @@ bereit(Prozesse, {Arbeitszeit, Termzeit, Ggtprozessnummer, Nameservicenode, Koor
             beenden(Prozesse, {Nameservicenode})
     end.
 
+random_no()->
+    random:uniform(3)-1.
 n(Prozesse) when is_list(Prozesse) ->
     case round(length(Prozesse) * 15 / 100) of
 	N when N < 2 -> 2;
 	N -> N
     end.
 
-ggt(GGT) -> round(GGT * lists:foldl(fun(X, Y) -> X * math:pow(Y, random:uniform(3) - 1) end, 1, [3, 5, 11, 13, 23, 37])).
+ggt(GGT) -> round(GGT* math:pow(3,random_no())*math:pow(5,random_no())* math:pow(11,random_no())* math:pow(13,random_no())* math:pow(23,random_no())* math:pow(37,random_no())).
 
 %%  _____ _____ ____ _____ _____
 %% |  _  \ ____/ ___| ____|_   _|
